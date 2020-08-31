@@ -120,15 +120,6 @@ exports.register2 = [
     sanitizeBody("password").escape(),
     // Process request after validation and sanitization.
     (req, res) => {
-
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            // Display sanitized values/errors messages.
-            return apiResponse.validationErrorWithData(res, "Validation Error.", errors.array());
-        }
-
-        return apiResponse.successResponseWithData(res, "Success.", req.body);
-
         try {
             // Extract the validation errors from a request.
             const errors = validationResult(req);
