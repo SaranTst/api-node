@@ -1,0 +1,13 @@
+const express = require("express");
+const BookController = require("../controllers/BookController");
+
+const router = express.Router();
+
+router.get("/", BookController.bookList);
+router.get("/user/:userid", BookController.bookListWithUser);  // เพิ่มมาใหม่
+router.get("/:id", BookController.bookDetail);
+router.post("/", BookController.bookStore);
+router.put("/:id", BookController.bookUpdate);
+router.delete("/:id", BookController.bookDelete);
+
+module.exports = router;
