@@ -173,6 +173,84 @@ exports.register2 = [
         }
     }];
 
+exports.register3 = [
+    // Validate fields.
+    body("firstName").isLength({ min: 1 }).trim().withMessage("First name must be specified."),
+    body("lastName").isLength({ min: 1 }).trim().withMessage("Last name must be specified."),
+    body("email").isLength({ min: 1 }).trim().withMessage("Email must be specified.")
+        .isEmail().withMessage("Email must be a valid email address.").custom((value) => {
+            return UserModel.findOne({ email: value }).then((user) => {
+                if (user) {
+                    return Promise.reject("E-mail already in use");
+                }
+            });
+        }),
+    body("password").isLength({ min: 6, max: 18 }).trim().withMessage("Password must be 6 characters or greater."),
+    // Sanitize fields.
+    sanitizeBody("firstName").customSanitizer(value => {
+        return utility.clearBadString(value);
+    }).escape(),
+    sanitizeBody("lastName").customSanitizer(value => {
+        return utility.clearBadString(value);
+    }).escape(),
+    sanitizeBody("email").escape(),
+    sanitizeBody("password").escape(),
+    // Process request after validation and sanitization.
+    async (req, res) => {
+        try {
+            // Extract the validation errors from a request.
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                // Display sanitized values/errors messages.
+                return apiResponse.validationErrorWithData(res, "Validation Error.", errors.array());
+            } else {
+                //hash input password
+                bcrypt.hash(req.body.password, 10, function (err, hash) {
+                    // generate OTP for confirmation
+                    let otp = utility.randomNumber(4);
+                    // Create User object with escaped and trimmed data
+                    var user = new UserModel(
+                        {
+                            firstName: req.body.firstName,
+                            lastName: req.body.lastName,
+                            email: req.body.email,
+                            password: hash,
+                            confirmOTP: otp
+                        }
+                    );
+                    // Html email body
+                    let html = "<p>Please Confirm your Account.</p><p>OTP: " + otp + "</p>";
+                    // Send confirmation email
+                    mailer.send(
+                        constants.confirmEmails.from,
+                        req.body.email,
+                        "Confirm Account",
+                        html
+                    ).then(async function (err) {
+                        // Save user. (use async await)
+                        let users = await user.save().catch((error) => {
+                            return apiResponse.ErrorResponse(res, err);
+                        });
+                        let userData = {
+                            _id: user._id,
+                            firstName: user.firstName,
+                            lastName: user.lastName,
+                            email: user.email,
+                            resUsers: users
+                        };
+                        return apiResponse.successResponseWithData(res, "Registration Success.", userData);
+                    }).catch(err => {
+                        console.log(err);
+                        return apiResponse.ErrorResponse(res, err);
+                    });
+                });
+            }
+        } catch (err) {
+            //throw error in json response with status 500.
+            return apiResponse.ErrorResponse(res, err);
+        }
+    }];
+
 /**
  * User login.
  *
